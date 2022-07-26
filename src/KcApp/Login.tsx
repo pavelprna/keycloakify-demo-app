@@ -1,176 +1,154 @@
-import { memo } from 'react'
-import { Template } from 'keycloakify/lib/components/Template'
-import type { KcProps } from 'keycloakify'
-import { getMsg } from 'keycloakify'
-import type { KcContext } from './kcContext'
-import { useCssAndCx } from 'tss-react'
-import { Row, Input, Button, Typography, Layout, Card } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import 'antd/dist/antd.css'
-import { SocialIcon } from 'react-social-icons'
-import './Auth.css'
-const { Title } = Typography
+import { useState, memo, useEffect } from 'react'
+import { Template } from './Template'
+import type { KcProps } from 'keycloakify/lib/components/KcProps'
+import type { KcContextBase } from 'keycloakify/lib/getKcContext/KcContextBase'
+import { getMsg } from 'keycloakify/lib/i18n'
+import { useConstCallback } from 'powerhooks/useConstCallback'
+import type { FormEventHandler } from 'react'
+import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Checkbox from '@mui/material/Checkbox'
+import Link from '@mui/material/Link'
+import Grid from '@mui/material/Grid'
+import Box from '@mui/material/Box'
 
-//This is a copy paste from https://github.com/InseeFrLab/keycloakify/blob/main/src/lib/components/Register.tsx
-//It is now up to us to implement a special behavior to leverage the non standard authorizedMailDomains
-//provided by the plugin: https://github.com/micedre/keycloak-mail-whitelisting installed on our keycloak server.
-
-type KcContext_Register = Extract<KcContext, { pageId: 'login.ftl' }>
-
-export const Register = memo(
-  ({ kcContext, ...props }: { kcContext: KcContext_Register } & KcProps) => {
-    const { url, messagesPerField, login, realm } = kcContext
+export const Login = memo(
+  ({ kcContext, ...props }: { kcContext: KcContextBase.Login } & KcProps) => {
+    const {
+      social,
+      realm,
+      url,
+      usernameEditDisabled,
+      login,
+      auth,
+      registrationDisabled,
+    } = kcContext
 
     const { msg, msgStr } = getMsg(kcContext)
 
-    const { cx } = useCssAndCx()
+    const [isLoginButtonDisabled, setIsLoginButtonDisabled] = useState(false)
 
-    console.log(url)
+    useEffect(() => {
+      document.title = 'BookUP ID — Вход'
+    }, [])
+
+    const onSubmit = useConstCallback<FormEventHandler<HTMLFormElement>>(
+      (e) => {
+        e.preventDefault()
+
+        setIsLoginButtonDisabled(true)
+
+        const formElement = e.target as HTMLFormElement
+
+        formElement
+          .querySelector("input[name='email']")
+          ?.setAttribute('name', 'username')
+
+        formElement.submit()
+      }
+    )
+
+    const label = !realm.loginWithEmailAllowed
+      ? 'username'
+      : realm.registrationEmailAsUsername
+      ? 'email'
+      : 'usernameOrEmail'
+
+    const autoCompleteHelper: typeof label =
+      label === 'usernameOrEmail' ? 'username' : label
 
     return (
-      //   <Template
-      //     {...{ kcContext, ...props }}
-      //     doFetchDefaultThemeResources={true}
-      //     headerNode={msg('registerTitle')}
-      //     formNode={
-      <Layout>
-        <div className='auth-form'>
-          <Card>
-            <Title className='text-center'>BookUp ID</Title>
-            <form
-              id='kc-form-login'
-              name='auth'
-              className='login-form'
-              action={url.loginAction}
-              method='post'
+      <Template
+        {...{ kcContext, ...props }}
+        doFetchDefaultThemeResources={true}
+        displayInfo={social.displayInfo}
+        displayWide={realm.password && social.providers !== undefined}
+        headerNode={msg('doLogIn')}
+        formNode={
+          <Box
+            component='form'
+            action={url.loginAction}
+            method='post'
+            onSubmit={onSubmit}
+            noValidate
+            sx={{ mt: 1 }}
+          >
+            <TextField
+              margin='normal'
+              required
+              fullWidth
+              id='email'
+              label={msg(label)}
+              name={autoCompleteHelper}
+              {...(usernameEditDisabled
+                ? { disabled: true }
+                : {
+                    autoFocus: true,
+                    autoComplete: 'off',
+                  })}
+            />
+            <TextField
+              margin='normal'
+              required
+              fullWidth
+              name='password'
+              label={msg('password')}
+              type='password'
+              id='password'
+              autoComplete='current-password'
+            />
+            {realm.rememberMe && !usernameEditDisabled && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name='rememberMe'
+                    color='primary'
+                    {...(login.rememberMe
+                      ? {
+                          checked: true,
+                        }
+                      : {})}
+                  />
+                }
+                label={msg('rememberMe')}
+              />
+            )}
+            <Button
+              type='submit'
+              fullWidth
+              variant='contained'
+              sx={{ mt: 3, mb: 2 }}
+              size='large'
+              disabled={isLoginButtonDisabled}
             >
-              {/* <Form.Item
-                
-                rules={[{ required: true, message: 'Введите логин!' }]}
-              > */}
-              <Input
-                prefix={<UserOutlined className='site-form-item-icon' />}
-                name='email'
-                id='email'
-                placeholder='Логин'
-                style={{ marginBottom: '24px' }}
-              />
-              {/* </Form.Item>
-              <Form.Item
-              
-              rules={[{ required: true, message: 'Введите пароль!' }]}
-            > */}
-              <Input
-                prefix={<LockOutlined className='site-form-item-icon' />}
-                style={{ marginBottom: '24px' }}
-                name='password'
-                id='password'
-                type='password'
-                placeholder='Пароль'
-              />
-              {/* </Form.Item> */}
-              <Button type='primary' className='w-100' htmlType='submit'>
-                Войти
-              </Button>
-              <Typography className='text-center' style={{ margin: '20px 0' }}>
-                или войти с помощью
-              </Typography>
-              <Row justify='space-evenly'>
-                <SocialIcon network='vk' />
-                <SocialIcon network='google' />
-                <SocialIcon network='facebook' />
-                <SocialIcon url='https://upload.wikimedia.org/wikipedia/commons/5/58/Yandex_icon.svg' />
-              </Row>
-            </form>
-          </Card>
-        </div>
-      </Layout>
-      // <form id="kc-register-form" className={cx(props.kcFormClass)} action={url.registrationAction} method="post">
-      //     <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists('firstName', props.kcFormGroupErrorClass))}>
-      //         <div className={cx(props.kcLabelWrapperClass)}>
-      //             <label htmlFor="firstName" className={cx(props.kcLabelClass)}>{msg("firstName")}</label>
-      //         </div>
-      //         <div className={cx(props.kcInputWrapperClass)}>
-      //             <input type="text" id="firstName" className={cx(props.kcInputClass)} name="firstName"
-      //                 defaultValue={register.formData.firstName ?? ""}
-      //             />
-      //         </div>
-      //     </div>
-      //     <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists("lastName", props.kcFormGroupErrorClass))}>
-      //         <div className={cx(props.kcLabelWrapperClass)}>
-      //             <label htmlFor="lastName" className={cx(props.kcLabelClass)}>{msg("lastName")}</label>
-      //         </div>
-      //         <div className={cx(props.kcInputWrapperClass)}>
-      //             <input type="text" id="lastName" className={cx(props.kcInputClass)} name="lastName"
-      //                 defaultValue={register.formData.lastName ?? ""}
-      //             />
-      //         </div>
-      //     </div>
-      //     <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists('email', props.kcFormGroupErrorClass))}>
-      //         <div className={cx(props.kcLabelWrapperClass)}>
-      //             <label htmlFor="email" className={cx(props.kcLabelClass)}>{msg("email")}</label>
-      //         </div>
-      //         <div className={cx(props.kcInputWrapperClass)}>
-      //             <input type="text" id="email" className={cx(props.kcInputClass)} name="email"
-      //                 defaultValue={register.formData.email ?? ""} autoComplete="email"
-      //             />
-      //         </div>
-      //     </div>
-      //     {
-      //         !realm.registrationEmailAsUsername &&
-      //         <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists('username', props.kcFormGroupErrorClass))}>
-      //             <div className={cx(props.kcLabelWrapperClass)}>
-      //                 <label htmlFor="username" className={cx(props.kcLabelClass)}>{msg("username")}</label>
-      //             </div>
-      //             <div className={cx(props.kcInputWrapperClass)}>
-      //                 <input type="text" id="username" className={cx(props.kcInputClass)} name="username"
-      //                     defaultValue={register.formData.username ?? ""} autoComplete="username" />
-      //             </div>
-      //         </div >
-      //     }
-      //     {
-      //         passwordRequired &&
-      //         <>
-      //             <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists("password", props.kcFormGroupErrorClass))}>
-      //                 <div className={cx(props.kcLabelWrapperClass)}>
-      //                     <label htmlFor="password" className={cx(props.kcLabelClass)}>{msg("password")}</label>
-      //                 </div>
-      //                 <div className={cx(props.kcInputWrapperClass)}>
-      //                     <input type="password" id="password" className={cx(props.kcInputClass)} name="password" autoComplete="new-password" />
-      //                 </div>
-      //             </div>
-      //             <div className={cx(props.kcFormGroupClass, messagesPerField.printIfExists("password-confirm", props.kcFormGroupErrorClass))}>
-      //                 <div className={cx(props.kcLabelWrapperClass)}>
-      //                     <label htmlFor="password-confirm" className={cx(props.kcLabelClass)}>{msg("passwordConfirm")}</label>
-      //                 </div>
-      //                 <div className={cx(props.kcInputWrapperClass)}>
-      //                     <input type="password" id="password-confirm" className={cx(props.kcInputClass)} name="password-confirm" />
-      //                 </div>
-      //             </div>
-      //         </>
-      //     }
-      //     {
-      //         recaptchaRequired &&
-      //         <div className="form-group">
-      //             <div className={cx(props.kcInputWrapperClass)}>
-      //                 <div className="g-recaptcha" data-size="compact" data-sitekey={recaptchaSiteKey}></div>
-      //             </div>
-      //         </div>
-      //     }
-      //     <div className={cx(props.kcFormGroupClass)}>
-      //         <div id="kc-form-options" className={cx(props.kcFormOptionsClass)}>
-      //             <div className={cx(props.kcFormOptionsWrapperClass)}>
-      //                 <span><a href={url.loginUrl}>{msg("backToLogin")}</a></span>
-      //             </div>
-      //         </div>
-      //         <div id="kc-form-buttons" className={cx(props.kcFormButtonsClass)}>
-      //             <input className={cx(props.kcButtonClass, props.kcButtonPrimaryClass, props.kcButtonBlockClass, props.kcButtonLargeClass)} type="submit"
-      //                 value={msgStr("doRegister")} />
-      //         </div>
-      //     </div>
-      // </form >
-      //     }
-      //   />
+              {msgStr('doLogIn')}
+            </Button>
+            <Grid container>
+              <Grid item xs>
+                {realm.resetPasswordAllowed && (
+                  <Link href={url.loginResetCredentialsUrl} variant='body2'>
+                    {msg('doForgotPassword')}
+                  </Link>
+                )}
+              </Grid>
+              <Grid item>
+                {realm.password &&
+                  realm.registrationAllowed &&
+                  !registrationDisabled && (
+                    <>
+                      {/* <Typography>{msg('noAccount')}</Typography> */}
+
+                      <Link href={url.registrationUrl} variant='body2'>
+                        {msg('doRegister')}
+                      </Link>
+                    </>
+                  )}
+              </Grid>
+            </Grid>
+          </Box>
+        }
+      />
     )
   }
 )
